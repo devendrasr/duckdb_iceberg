@@ -168,13 +168,28 @@ string IcebergSnapshot::ReadMetaData(const string &path, FileSystem &fs) {
 
 	if (StringUtil::EndsWith(path, ".json")) {
 		metadata_file_path = path;
-	} else {
-		auto table_version = GetTableVersion(path, fs);
-		auto meta_path = fs.JoinPath(path, "metadata");
-		metadata_file_path = fs.JoinPath(meta_path, "v" + table_version + ".metadata.json");
+		// check if metadata is gz compressed file?
+		if (metadata_file_path.find(".gz.metadata.") != string::npos) {
+			printf("it's gz!\n");
+			return IcebergUtils::GzFileToString(metadata_file_path, fs);
+		}
+		return IcebergUtils::FileToString(metadata_file_path, fs);
+	} 
+	auto table_version = GetTableVersion(path, fs);
+	auto meta_path = fs.JoinPath(path, "metadata");
+	metadata_file_path = fs.JoinPath(meta_path, "v" + table_version + ".metadata.json");
+	
+	printf("trying! metadata_file_path:%s\n", metadata_file_path.c_str());
+	try {
+		// attempting to return file content as json string.
+		return IcebergUtils::FileToString(metadata_file_path, fs);
+	} catch(...) {
+		printf("re-trying! metadata_file_path:%s\n", metadata_file_path.c_str());
+		// try with gz metadata file
+		metadata_file_path = fs.JoinPath(meta_path, "v" + table_version + ".gz.metadata.json");
+		// attempting to return file content as gz compressed json string.
+		return IcebergUtils::GzFileToString(metadata_file_path, fs);
 	}
-
-	return IcebergUtils::FileToString(metadata_file_path, fs);
 }
 
 IcebergSnapshot IcebergSnapshot::ParseSnapShot(yyjson_val *snapshot, idx_t iceberg_format_version, idx_t schema_id,
