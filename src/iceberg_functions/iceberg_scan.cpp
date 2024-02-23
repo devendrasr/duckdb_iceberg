@@ -136,9 +136,10 @@ static unique_ptr<TableRef> MakeScanExpression(vector<Value> &data_file_values, 
 		table_function_ref_data->alias = "iceberg_scan_data";
 		vector<unique_ptr<ParsedExpression>> left_children;
 		left_children.push_back(make_uniq<ConstantExpression>(Value::LIST(data_file_values)));
-		left_children.push_back(
-		    make_uniq<ComparisonExpression>(ExpressionType::COMPARE_EQUAL, make_uniq<ColumnRefExpression>("schema"),
-		                                    make_uniq<ConstantExpression>(GetParquetSchemaParam(schema))));
+		// left_children.push_back(
+		//     make_uniq<ComparisonExpression>(ExpressionType::COMPARE_EQUAL, make_uniq<ColumnRefExpression>("schema"),
+		//                                     make_uniq<ConstantExpression>(GetParquetSchemaParam(schema))));
+		
 		table_function_ref_data->function = make_uniq<FunctionExpression>("parquet_scan", std::move(left_children));
 		return std::move(table_function_ref_data);
 	}
@@ -169,9 +170,9 @@ static unique_ptr<TableRef> MakeScanExpression(vector<Value> &data_file_values, 
 	left_children.push_back(make_uniq<ComparisonExpression>(ExpressionType::COMPARE_EQUAL,
 	                                                        make_uniq<ColumnRefExpression>("file_row_number"),
 	                                                        make_uniq<ConstantExpression>(Value(1))));
-	left_children.push_back(
-	    make_uniq<ComparisonExpression>(ExpressionType::COMPARE_EQUAL, make_uniq<ColumnRefExpression>("schema"),
-	                                    make_uniq<ConstantExpression>(GetParquetSchemaParam(schema))));
+	// left_children.push_back(
+	//     make_uniq<ComparisonExpression>(ExpressionType::COMPARE_EQUAL, make_uniq<ColumnRefExpression>("schema"),
+	//                                     make_uniq<ConstantExpression>(GetParquetSchemaParam(schema))));
 
 	table_function_ref_data->function = make_uniq<FunctionExpression>("parquet_scan", std::move(left_children));
 	join_node->left = std::move(table_function_ref_data);

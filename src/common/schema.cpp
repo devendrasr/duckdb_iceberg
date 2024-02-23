@@ -8,78 +8,8 @@ namespace duckdb {
 // forward declaration
 static LogicalType ParseType(yyjson_val *type);
 
-static LogicalType ParseStruct(yyjson_val *struct_type) {
-	D_ASSERT(yyjson_get_tag(struct_type) == YYJSON_TYPE_OBJ);
-	D_ASSERT(IcebergUtils::TryGetStrFromObject(struct_type, "type") == "struct");
-
-	child_list_t<LogicalType> children;
-	yyjson_val *field;
-	size_t max, idx;
-
-	auto fields = yyjson_obj_get(struct_type, "fields");
-	yyjson_arr_foreach(fields, idx, max, field) {
-		// NOTE: 'id', 'required', 'doc', 'initial_default', 'write_default' are ignored for now
-		auto name = IcebergUtils::TryGetStrFromObject(field, "name");
-		auto type_item = yyjson_obj_get(field, "type");
-		auto type = ParseType(type_item);
-		children.push_back(std::make_pair(name, type));
-	}
-	return LogicalType::STRUCT(std::move(children));
-}
-
-static LogicalType ParseList(yyjson_val *list_type) {
-	D_ASSERT(yyjson_get_tag(list_type) == YYJSON_TYPE_OBJ);
-	D_ASSERT(IcebergUtils::TryGetStrFromObject(list_type, "type") == "list");
-
-	// NOTE: 'element-id', 'element-required' are ignored for now
-	auto element = yyjson_obj_get(list_type, "element");
-	auto child_type = ParseType(element);
-	return LogicalType::LIST(child_type);
-}
-
-static LogicalType ParseMap(yyjson_val *map_type) {
-	D_ASSERT(yyjson_get_tag(map_type) == YYJSON_TYPE_OBJ);
-	D_ASSERT(IcebergUtils::TryGetStrFromObject(map_type, "type") == "map");
-
-	// NOTE: 'key-id', 'value-id', 'value-required' are ignored for now
-	auto key = yyjson_obj_get(map_type, "key");
-	auto value = yyjson_obj_get(map_type, "value");
-
-	auto key_type = ParseType(key);
-	auto value_type = ParseType(value);
-	return LogicalType::MAP(key_type, value_type);
-}
-
-static LogicalType ParseComplexType(yyjson_val *type) {
-	D_ASSERT(yyjson_get_tag(type) == YYJSON_TYPE_OBJ);
-	auto type_str = IcebergUtils::TryGetStrFromObject(type, "type");
-
-	if (type_str == "struct") {
-		return ParseStruct(type);
-	}
-	if (type_str == "list") {
-		return ParseList(type);
-	}
-	if (type_str == "map") {
-		return ParseMap(type);
-	}
-	throw IOException("Invalid field found while parsing field: type");
-}
-
-static LogicalType ParseType(yyjson_val *type) {
-	auto type_str = IcebergUtils::TryGetStrFromObject(type, "type");
-
-	auto val = yyjson_obj_get(type, "type");
-	if (!val) {
-		throw IOException("Invalid field found while parsing field: type");
-	}
-	if (yyjson_get_tag(val) == YYJSON_TYPE_OBJ) {
-		return ParseComplexType(val);
-	}
-	if (yyjson_get_tag(val) != YYJSON_TYPE_STR) {
-		throw IOException("Invalid field found while parsing field: type");
-	}
-
+static LogicalType mapPrimitiveType(string type_str) {
+	printf("mapPrimitiveType: %s\n", type_str.c_str());
 	if (type_str == "boolean") {
 		return LogicalType::BOOLEAN;
 	}
@@ -136,15 +66,115 @@ static LogicalType ParseType(yyjson_val *type) {
 	throw IOException("Encountered an unrecognized type in JSON schema: \"%s\"", type_str);
 }
 
+static LogicalType ParseStruct(yyjson_val *struct_type) {
+	D_ASSERT(yyjson_get_tag(struct_type) == YYJSON_TYPE_OBJ);
+	D_ASSERT(IcebergUtils::TryGetStrFromObject(struct_type, "type") == "struct");
+
+	child_list_t<LogicalType> children;
+	yyjson_val *field;
+	size_t max, idx;
+
+	auto fields = yyjson_obj_get(struct_type, "fields");
+	yyjson_arr_foreach(fields, idx, max, field) {
+		// NOTE: 'id', 'required', 'doc', 'initial_default', 'write_default' are ignored for now
+		auto name = IcebergUtils::TryGetStrFromObject(field, "name");
+		auto sType = IcebergUtils::TryGetStrFromObject(field, "type");
+		auto type = mapPrimitiveType(sType);
+		// printf("***name=%s; type=%s;\n", name.c_str(), t.c_str());
+		// auto type_item = yyjson_obj_get(field, "type");
+		// auto type = ParseType(type_item);
+		children.push_back(std::make_pair(name, type));
+	}
+	return LogicalType::STRUCT(std::move(children));
+}
+
+static LogicalType ParseList(yyjson_val *list_type) {
+	D_ASSERT(yyjson_get_tag(list_type) == YYJSON_TYPE_OBJ);
+	D_ASSERT(IcebergUtils::TryGetStrFromObject(list_type, "type") == "list");
+
+	// NOTE: 'element-id', 'element-required' are ignored for now
+	auto element = yyjson_obj_get(list_type, "element");
+	auto child_type = ParseType(element);
+	return LogicalType::LIST(child_type);
+}
+
+static LogicalType ParseMap(yyjson_val *map_type) {
+	D_ASSERT(yyjson_get_tag(map_type) == YYJSON_TYPE_OBJ);
+	D_ASSERT(IcebergUtils::TryGetStrFromObject(map_type, "type") == "map");
+
+	// NOTE: 'key-id', 'value-id', 'value-required' are ignored for now
+	auto key = yyjson_obj_get(map_type, "key");
+	auto value = yyjson_obj_get(map_type, "value");
+
+	// auto key_type = ParseType(key);
+	// auto value_type = ParseType(value);
+	auto key_type = mapPrimitiveType(yyjson_get_str(key));
+	auto value_type = mapPrimitiveType(yyjson_get_str(value));
+	return LogicalType::MAP(key_type, value_type);
+}
+
+static LogicalType ParseComplexType(yyjson_val *type) {
+	D_ASSERT(yyjson_get_tag(type) == YYJSON_TYPE_OBJ);
+	auto type_str = IcebergUtils::TryGetStrFromObject(type, "type");
+
+	if (type_str == "struct") {
+		return ParseStruct(type);
+	}
+	if (type_str == "list") {
+		return ParseList(type);
+	}
+	if (type_str == "map") {
+		return ParseMap(type);
+	}
+	throw IOException("Invalid field found while parsing field: type");
+}
+
+static LogicalType ParseType(yyjson_val *type) {
+	auto type_str = IcebergUtils::TryGetStrRecursiveFromObject(type, "type");
+	printf("-----\nstart:ParseType=%s\n", type_str.c_str());
+	auto val = yyjson_obj_get(type, "type");
+	if (!val) {
+		throw IOException("Invalid field found while parsing field: type");
+	}
+	if (yyjson_get_tag(val) == YYJSON_TYPE_OBJ) {
+		return LogicalType::VARCHAR;
+		// return ParseComplexType(val);
+	}
+	if (yyjson_get_tag(val) != YYJSON_TYPE_STR) {
+		throw IOException("Invalid field found while parsing field: type");
+	}
+	printf("-----\nend:ParseType=%s\n", type_str.c_str());
+	return mapPrimitiveType(type_str);
+}
+
 IcebergColumnDefinition IcebergColumnDefinition::ParseFromJson(yyjson_val *val) {
+	
 	IcebergColumnDefinition ret;
 
 	ret.id = IcebergUtils::TryGetNumFromObject(val, "id");
 	ret.name = IcebergUtils::TryGetStrFromObject(val, "name");
+	printf("----------------------------------------------------------------------\n");
+	printf("ParseFromJson start field=%s!\n", ret.name.c_str());
 	ret.type = ParseType(val);
 	ret.default_value = Value();
-	ret.required = IcebergUtils::TryGetBoolFromObject(val, "required");
-
+	printf("ParseFromJson: name=%s; val=%s\n", ret.name.c_str(), yyjson_get_str(val));
+	string t = "type";
+	auto typeVal = yyjson_obj_getn(val, t.c_str(), t.size());
+	if (!typeVal) {
+		printf("ParseFromJson: type value is empty\n");
+	}
+	
+	auto type_str = IcebergUtils::TryGetStrRecursiveFromObject(val, "type");
+	printf("ParseFromJson: name=%s; type_str=%s; val=%s\n", ret.name.c_str(), type_str.c_str(), yyjson_get_str(val));
+	
+	if (type_str == "map" || type_str == "struct" || type_str == "list") {
+		// it's a complex data type
+		ret.required = false;
+	} else {
+		ret.required = IcebergUtils::TryGetBoolFromObject(val, "required");
+	}
+	printf("ParseFromJson end field=%s!\n", ret.name.c_str());
+	printf("----------------------------------------------------------------------\n");
 	return ret;
 }
 

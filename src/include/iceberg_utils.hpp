@@ -28,6 +28,7 @@ public:
 	//! YYJSON utility functions
 	static uint64_t TryGetNumFromObject(yyjson_val *obj, const string &field);
 	static string TryGetStrFromObject(yyjson_val *obj, const string &field);
+	static string TryGetStrRecursiveFromObject(yyjson_val *obj, const string &field);
 	static bool TryGetBoolFromObject(yyjson_val *obj, const string &field);
 };
 
