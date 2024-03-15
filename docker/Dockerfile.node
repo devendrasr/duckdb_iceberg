@@ -1,0 +1,9 @@
+FROM rubiklabs/duckdb:0.0.1 as builder
+
+FROM node:18.13.0-bullseye-slim
+
+RUN mkdir /duckdb/
+
+COPY --from=builder /duckdb/* /duckdb/
+
+WORKDIR /duckdb
