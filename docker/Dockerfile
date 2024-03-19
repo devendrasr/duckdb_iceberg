@@ -30,32 +30,14 @@ RUN cd /duckdb_iceberg \
 
 RUN cd /duckdb_iceberg && VCPKG_TOOLCHAIN_PATH=/usr/local/vcpkg/scripts/buildsystems/vcpkg.cmake make release
 
+RUN cd /duckdb_iceberg/duckdb/tools/pythonpkg && python3 -m pip wheel .
+
 FROM rubiklabs/base:ubuntu23
 
-RUN mkdir /duckdb/
+RUN mkdir -p /duckdb/repository
 
+COPY --from=builder /duckdb_iceberg/duckdb/tools/pythonpkg/duckdb-0.10.0-cp311-cp311-linux_x86_64.whl /duckdb/duckdb-0.10.0-cp311-cp311-linux_x86_64.whl
 COPY --from=builder /duckdb_iceberg/build/release/repository /duckdb/repository
 COPY --from=builder /duckdb_iceberg/build/release/duckdb /duckdb/
 
-# RUN mkdir /duckdb/ \
-#     && mv /duckdb_iceberg/build/release/repository /duckdb/repository \
-#     && mv /duckdb_iceberg/build/release/duckdb /duckdb/ \
-#     && rm -rf /duckdb_iceberg && rm -rf /usr/local/vcpkg \
-#     && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-
 WORKDIR /duckdb
-
-# FROM node:18.13.0-bullseye-slim
-
-# FROM node:18.13.0-bullseye-slim
-
-# COPY --from=builder /duckdb_iceberg/build/release/repository /repository
-
-# COPY --from=builder /duckdb_iceberg /duckdb_iceberg
-
-# WORKDIR /duckdb-nodejs
-
-# RUN rm -rf /duckdb_iceberg \
-#     && apt-get clean && rm -rf /var/lib/apt/lists/*
-
